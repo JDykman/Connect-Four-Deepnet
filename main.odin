@@ -24,7 +24,7 @@ main :: proc() {
 
 	if gen_flag {
 		dataset_file :: "connect4_training_data.bin"
-		total_games_to_generate :: 10_000
+		total_games_to_generate :: 1
 
 		// Gen Step
 		fmt.printfln("Generating %v games...", total_games_to_generate)
