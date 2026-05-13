@@ -1,49 +1,22 @@
 package game
 
+import "../helpers"
 import "core:fmt"
-import "core:math/rand"
-import "core:mem"
-import "core:os"
 
-width :: 7
-height :: 6
-
-p_width :: width + 2
-p_height :: height + 2
-
-// Changed to f32 so it is immediately ready to feed into your Neural Network
-gameboard :: [2][p_height][p_width]u8
-
-// ANSI Color Constants
-ANSI_RESET :: "\x1b[0m"
-ANSI_RED :: "\x1b[31m"
-ANSI_YELLOW :: "\x1b[33m"
-ANSI_GREEN :: "\x1b[32m"
-
-Win_State :: struct {
-	found:  bool,
-	player: int,
-	coords: [4][2]int,
-}
-
-Training_Sample :: struct {
-	board: gameboard,
-	state: Win_State,
-}
-
-check_win :: proc(board: ^gameboard) -> Win_State {
+check_win :: proc(board: helpers.gameboard) -> helpers.Win_State {
 	for p in 0 ..< 2 {
+		val := u8(1)
 		// Horizontal
 		for r in 1 ..= 6 {
 			for c in 1 ..= 4 {
-				if board[p][r][c] == 1.0 &&
-				   board[p][r][c + 1] == 1.0 &&
-				   board[p][r][c + 2] == 1.0 &&
-				   board[p][r][c + 3] == 1.0 {
-					return Win_State {
+				if board[p][r][c] == val &&
+				   board[p][r][c + 1] == val &&
+				   board[p][r][c + 2] == val &&
+				   board[p][r][c + 3] == val {
+					return {
 						found = true,
-						player = p,
-						coords = [4][2]int{{r, c}, {r, c + 1}, {r, c + 2}, {r, c + 3}},
+						player = p + 1,
+						coords = {{r, c}, {r, c + 1}, {r, c + 2}, {r, c + 3}},
 					}
 				}
 			}
@@ -52,14 +25,14 @@ check_win :: proc(board: ^gameboard) -> Win_State {
 		// Vertical
 		for r in 1 ..= 3 {
 			for c in 1 ..= 7 {
-				if board[p][r][c] == 1.0 &&
-				   board[p][r + 1][c] == 1.0 &&
-				   board[p][r + 2][c] == 1.0 &&
-				   board[p][r + 3][c] == 1.0 {
-					return Win_State {
+				if board[p][r][c] == val &&
+				   board[p][r + 1][c] == val &&
+				   board[p][r + 2][c] == val &&
+				   board[p][r + 3][c] == val {
+					return {
 						found = true,
-						player = p,
-						coords = [4][2]int{{r, c}, {r + 1, c}, {r + 2, c}, {r + 3, c}},
+						player = p + 1,
+						coords = {{r, c}, {r + 1, c}, {r + 2, c}, {r + 3, c}},
 					}
 				}
 			}
@@ -68,14 +41,14 @@ check_win :: proc(board: ^gameboard) -> Win_State {
 		// Diagonal Right (\)
 		for r in 1 ..= 3 {
 			for c in 1 ..= 4 {
-				if board[p][r][c] == 1.0 &&
-				   board[p][r + 1][c + 1] == 1.0 &&
-				   board[p][r + 2][c + 2] == 1.0 &&
-				   board[p][r + 3][c + 3] == 1.0 {
-					return Win_State {
+				if board[p][r][c] == val &&
+				   board[p][r + 1][c + 1] == val &&
+				   board[p][r + 2][c + 2] == val &&
+				   board[p][r + 3][c + 3] == val {
+					return {
 						found = true,
-						player = p,
-						coords = [4][2]int{{r, c}, {r + 1, c + 1}, {r + 2, c + 2}, {r + 3, c + 3}},
+						player = p + 1,
+						coords = {{r, c}, {r + 1, c + 1}, {r + 2, c + 2}, {r + 3, c + 3}},
 					}
 				}
 			}
@@ -84,51 +57,27 @@ check_win :: proc(board: ^gameboard) -> Win_State {
 		// Diagonal Left (/)
 		for r in 1 ..= 3 {
 			for c in 4 ..= 7 {
-				if board[p][r][c] == 1.0 &&
-				   board[p][r + 1][c - 1] == 1.0 &&
-				   board[p][r + 2][c - 2] == 1.0 &&
-				   board[p][r + 3][c - 3] == 1.0 {
-					return Win_State {
+				if board[p][r][c] == val &&
+				   board[p][r + 1][c - 1] == val &&
+				   board[p][r + 2][c - 2] == val &&
+				   board[p][r + 3][c - 3] == val {
+					return {
 						found = true,
-						player = p,
-						coords = [4][2]int{{r, c}, {r + 1, c - 1}, {r + 2, c - 2}, {r + 3, c - 3}},
+						player = p + 1,
+						coords = {{r, c}, {r + 1, c - 1}, {r + 2, c - 2}, {r + 3, c - 3}},
 					}
 				}
 			}
 		}
 	}
-	return Win_State{found = false}
+	return {found = false}
 }
 
-turn :: proc(board: ^gameboard, col: int, player: int) -> bool {
-	if col < 0 || col > 6 do return false
-	if player < 0 || player > 1 do return false
-
-	padded_col := col + 1
-
-	if board[0][6][padded_col] != 0 || board[1][6][padded_col] != 0 {
-		return false
-	}
-
-	for r := 1; r <= 6; r += 1 {
-		if board[0][r][padded_col] == 0 && board[1][r][padded_col] == 0 {
-			board[player][r][padded_col] = 1.0
-			return true
-		}
-	}
-	return false
+turn :: proc(board: helpers.gameboard, network: ^helpers.NETWORK_WEIGHTS, player: int) -> bool {
+	return true
 }
 
-random_turn :: proc(player: int, board: ^gameboard) {
-	for {
-		pos := rand.int_max(7) // int_max(7) picks 0 through 6 cleanly
-		if turn(board, pos, player) {
-			break // Valid move found, exit loop
-		}
-	}
-}
-
-print_board :: proc(board: ^gameboard, win_state: Win_State = {}) {
+print_board :: proc(board: helpers.gameboard, win_state: helpers.Win_State) {
 	fmt.println("---------------")
 	for r := 6; r >= 1; r -= 1 {
 		fmt.print("| ")
@@ -144,69 +93,54 @@ print_board :: proc(board: ^gameboard, win_state: Win_State = {}) {
 			}
 
 			symbol := "."
-			color := ANSI_RESET
+			color := helpers.ANSI_RESET
 
-			if board[0][r][c] == 1.0 {
+			if board[0][r][c] == 1 {
 				symbol = "O"
-				color = is_winning_piece ? ANSI_GREEN : ANSI_RED
-			} else if board[1][r][c] == 1.0 {
+				color = is_winning_piece ? helpers.ANSI_GREEN : helpers.ANSI_RED
+			} else if board[1][r][c] == 1 {
 				symbol = "X"
-				color = is_winning_piece ? ANSI_GREEN : ANSI_YELLOW
+				color = is_winning_piece ? helpers.ANSI_GREEN : helpers.ANSI_YELLOW
 			}
 
-			fmt.printf("%s%s%s ", color, symbol, ANSI_RESET)
+			fmt.printf("%s%s%s ", color, symbol, helpers.ANSI_RESET)
 		}
 		fmt.println("|")
 	}
 	fmt.println("---------------")
 }
 
-play_game :: proc() -> (gameboard, Win_State) {
-	_gameboard: gameboard = {}
-	final_state: Win_State = {}
+init_game :: proc() -> helpers.Training_Sample {
+	gameboard: helpers.gameboard = {}
 
-	for turn in 0 ..< 42 {
-		current_player := turn % 2
-		random_turn(current_player, &_gameboard)
-		win_state := check_win(&_gameboard)
+	sample: helpers.Training_Sample = {
+		board  = gameboard,
+		z_true = 0,
+	}
 
-		if win_state.found {
-			final_state = win_state
-			break
+	return sample
+}
+
+
+play_game :: proc(
+	champion: ^helpers.NETWORK_WEIGHTS,
+	challenger: ^helpers.NETWORK_WEIGHTS,
+	first_player: int,
+) {
+	player_turn := first_player
+	data: helpers.Training_Sample = {}
+	game: for _ in 0 ..< 42 {
+		if player_turn == 0 {
+			turn(data.board, champion, 0)
+			player_turn = 1
+		} else {
+			turn(data.board, challenger, 1)
+			player_turn = 0
 		}
+		data.state = check_win(data.board)
+		if data.state.found {
+			break game
+		}
+
 	}
-	return _gameboard, final_state
-}
-
-// Dumps an array of game states to a raw binary file.
-dump_dataset :: proc(filepath: string, samples: []Training_Sample) -> bool {
-	perms: os.Permissions = {.Read_User, .Write_User, .Read_Group, .Read_Other}
-	fd, err := os.open(filepath, os.O_APPEND | os.O_CREATE | os.O_WRONLY, perms)
-
-	if err != os.ERROR_NONE {
-		fmt.printfln("Failed to open dataset file: %v", err)
-		return false
-	}
-	defer os.close(fd)
-
-	raw_bytes := mem.slice_data_cast([]u8, samples)
-
-	bytes_written, write_err := os.write(fd, raw_bytes)
-	if write_err != os.ERROR_NONE {
-		fmt.printfln("Failed to write to file: %v", write_err)
-		return false
-	}
-	return true
-}
-
-main :: proc() {
-	game, result := play_game()
-
-	if result.found {
-		fmt.printfln("Game Result: Player %v wins!", result.player)
-	} else {
-		fmt.println("Game Result: Draw")
-	}
-
-	print_board(&game, result)
 }
